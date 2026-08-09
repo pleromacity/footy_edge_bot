@@ -5,14 +5,35 @@ Get your free API keys here:
   - API-Football (fixtures, team stats): https://www.api-football.com/  (free tier: 100 req/day)
   - The Odds API (bookmaker odds):        https://the-odds-api.com/     (free tier: 500 req/month)
 
-Paste your keys below, or set them as environment variables of the same name
-(recommended if you don't want the key sitting in a plain text file).
+Set them as environment variables or in a local .env file. Do not commit real
+keys to source control.
 """
 
 import os
+from pathlib import Path
 
-API_FOOTBALL_KEY = os.environ.get("API_FOOTBALL_KEY", "PASTE_YOUR_API_FOOTBALL_KEY_HERE")
-ODDS_API_KEY = os.environ.get("ODDS_API_KEY", "PASTE_YOUR_ODDS_API_KEY_HERE")
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    load_dotenv = None
+
+base_dir = Path(__file__).resolve().parent
+if load_dotenv is not None:
+    load_dotenv(base_dir / ".env")
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {name}. "
+            "Add it to your shell or a local .env file before running the app."
+        )
+    return value
+
+
+API_FOOTBALL_KEY = _require_env("API_FOOTBALL_KEY")
+ODDS_API_KEY = _require_env("ODDS_API_KEY")
 
 # API-Football league IDs to scan. Add/remove as you like.
 # 39=EPL, 140=La Liga, 78=Bundesliga, 135=Serie A, 61=Ligue 1, 88=Eredivisie, 94=Primeira Liga

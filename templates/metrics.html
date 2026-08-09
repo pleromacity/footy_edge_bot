@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "components.html" import card_open, card_close, card_title, stat_card, empty_state, progress_bar %}
+{% block title %}Metrics — Footy Edge Bot{% endblock %}
+{% block content %}
+
+{{ card_open() }}
+  {{ card_title("Honesty dashboard") }}
+  <p class="note">Every number here is computed only from graded (real, settled) predictions — {{ graded_count }} so far. This is the only section that should ever inform whether you increase real stakes.</p>
+{{ card_close() }}
+
+{% if data %}
+<div class="stat-grid">
+  {{ stat_card("Flat-stake ROI", data.flat.roi_pct ~ "%", "pos" if data.flat.roi_pct > 0 else "neg") }}
+  {{ stat_card("Flat profit", data.flat.profit, "pos" if data.flat.profit > 0 else "neg") }}
+  {{ stat_card("Kelly-stake ROI", data.kelly.roi_pct ~ "%", "pos" if data.kelly.roi_pct > 0 else "neg") }}
+  {{ stat_card("Brier score", data.brier) }}
+</div>
+<p class="note" style="margin: -8px 0 var(--sp-5);">Brier score: 0 = perfect, 0.25 = no better than a coin flip, 1 = perfectly wrong.</p>
+
+{{ card_open() }}
+  {{ card_title("Win rate by market") }}
+  {% for market, stats in data.by_market.items() %}
+  <div style="margin-bottom: var(--sp-4);">
+    {{ progress_bar(market, stats.win_rate, stats.win_rate ~ "% (n=" ~ stats.n ~ ")") }}
+  </div>
+  {% endfor %}
+{{ card_close() }}
+
+{{ card_open("success" if data.flat.roi_pct > 0 else "warning") }}
+  {{ card_title("Reading this honestly") }}
+  {% if data.flat.roi_pct <= 0 %}
+  <p class="note">Flat-stake ROI is not positive on the current graded sample. That means no edge has been demonstrated yet — the responsible move is to keep collecting data, not to increase stakes hoping variance turns around.</p>
+  {% else %}
+  <p class="note">Flat-stake ROI is positive on this sample. Still treat this cautiously below 100 graded bets — small samples can look profitable by luck alone. Keep grading and re-check here regularly.</p>
+  {% endif %}
+{{ card_close() }}
+
+{% else %}
+{{ card_open() }}
+  {{ empty_state("&#128200;"|safe, "Not enough graded predictions yet", graded_count ~ "/20 minimum. Scan for picks, then grade them once matches finish.") }}
+{{ card_close() }}
+{% endif %}
+
+{% endblock %}

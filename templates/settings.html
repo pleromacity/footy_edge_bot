@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "components.html" import card_open, card_close, card_title, button %}
+{% block title %}Settings — Footy Edge Bot{% endblock %}
+{% block content %}
+
+{{ card_open() }}
+  {{ card_title("Model settings") }}
+  <form method="post" action="{{ url_for('settings_page') }}">
+
+    <div class="form-row">
+      <label class="field-label" for="min_edge">Minimum edge required to flag a bet (%)</label>
+      <input type="number" id="min_edge" name="min_edge" step="0.5" min="0" max="30"
+             value="{{ '%.1f'|format(current.min_edge * 100) }}">
+      <p class="note">Higher = fewer, more conservative picks. Lower = more picks, but more noise. 4% is a reasonable conservative default.</p>
+    </div>
+
+    <div class="form-row">
+      <label class="field-label" for="kelly_fraction">Kelly fraction (%)</label>
+      <input type="number" id="kelly_fraction" name="kelly_fraction" step="5" min="0" max="100"
+             value="{{ '%.0f'|format(current.kelly_fraction * 100) }}">
+      <p class="note">Fraction of full Kelly to actually stake. 100% = aggressive, high variance. 25% is what most professional bettors use in practice.</p>
+    </div>
+
+    <div class="form-row">
+      <label class="field-label" for="days_ahead">Days ahead to scan for fixtures</label>
+      <input type="number" id="days_ahead" name="days_ahead" step="1" min="1" max="14"
+             value="{{ current.days_ahead }}">
+    </div>
+
+    <div class="form-row">
+      <label class="field-label">Leagues to scan</label>
+      <div class="check-grid">
+        {% for id, name in all_leagues.items() %}
+        <label class="check-tile">
+          <input type="checkbox" name="league_ids" value="{{ id }}"
+                 {{ 'checked' if id in current.league_ids else '' }}>
+          {{ name }}
+        </label>
+        {% endfor %}
+      </div>
+      <p class="note">Which of these your API-Football plan can actually access depends on your subscription tier — the free plan may not include every league here.</p>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="form-row">
+      <label class="check-tile" style="max-width:340px;">
+        <input type="checkbox" name="auto_scan_enabled" {{ 'checked' if current.auto_scan_enabled else '' }}>
+        Run scan and grade automatically on a schedule
+      </label>
+    </div>
+
+    <div class="form-row">
+      <label class="field-label" for="scan_time">Daily scan time (24h, e.g. 08:00)</label>
+      <input type="text" id="scan_time" name="scan_time" value="{{ current.scan_time }}"
+             pattern="[0-2][0-9]:[0-5][0-9]" style="width:100px;">
+    </div>
+
+    <div class="form-row">
+      <label class="field-label" for="grade_time">Daily grade time (24h, e.g. 23:00)</label>
+      <input type="text" id="grade_time" name="grade_time" value="{{ current.grade_time }}"
+             pattern="[0-2][0-9]:[0-5][0-9]" style="width:100px;">
+      <p class="note">This only fires while the web app (<code>python webapp.py</code>) is actually running — it isn't a separate Windows service, so leave the app open for the schedule to work.</p>
+    </div>
+
+    {{ button('Save settings', 'primary') }}
+  </form>
+{{ card_close() }}
+
+{{ card_open() }}
+  {{ card_title("Paper mode") }}
+  <p class="note">Currently: <strong>{{ 'PAPER MODE' if paper_mode else 'LIVE MODE' }}</strong>. This can't be switched from the web UI on purpose — flipping to live/real-stake tracking is a deliberate decision to make directly in <code>config.py</code>, not a checkbox to click by accident. See the README for when it's actually reasonable to consider that switch.</p>
+{{ card_close() }}
+
+{% endblock %}

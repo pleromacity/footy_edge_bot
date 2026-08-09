@@ -1,0 +1,53 @@
+{# ============================================================
+   COMPONENT LIBRARY -- reusable Jinja macros for the design system.
+   Import with: {% from "components.html" import card, stat_card, ... %}
+   ============================================================ #}
+
+{% macro card_open(variant="default", extra_class="") -%}
+<div class="card {{ '' if variant == 'default' else variant }} {{ extra_class }}">
+{%- endmacro %}
+
+{% macro card_close() -%}
+</div>
+{%- endmacro %}
+
+{% macro card_title(text) -%}
+<h2 class="text-h2 card-title">{{ text }}</h2>
+{%- endmacro %}
+
+{% macro stat_card(label, value, variant="", trend="") -%}
+<div class="stat-card">
+  <div class="stat-label">{{ label }}</div>
+  <div class="stat-value {{ variant }}">{{ value }}</div>
+  {% if trend %}<div class="stat-trend">{{ trend }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro button(label, variant="primary", type="submit", id="", disabled=False, icon="") -%}
+<button class="btn {{ variant }}" type="{{ type }}" {% if id %}id="{{ id }}"{% endif %} {% if disabled %}disabled{% endif %}>
+  {% if icon %}<span>{{ icon }}</span>{% endif %}{{ label }}
+</button>
+{%- endmacro %}
+
+{% macro status_badge(label, variant="neutral") -%}
+<span class="status-badge {{ variant }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro empty_state(icon, title, desc="") -%}
+<div class="empty-state">
+  <div class="empty-icon">{{ icon }}</div>
+  <div class="empty-title">{{ title }}</div>
+  {% if desc %}<div class="empty-desc">{{ desc }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro progress_bar(label, pct, value_label="") -%}
+<div class="progress-label"><span>{{ label }}</span><span>{{ value_label if value_label else (pct ~ '%') }}</span></div>
+<div class="progress-track"><div class="progress-fill" style="width: {{ pct }}%;"></div></div>
+{%- endmacro %}
+
+{% macro result_badge(result) -%}
+  {% if result == 'WON' %}{{ status_badge('Won', 'success') }}
+  {% elif result == 'LOST' %}{{ status_badge('Lost', 'error') }}
+  {% else %}{{ status_badge('Pending', 'warning') }}{% endif %}
+{%- endmacro %}

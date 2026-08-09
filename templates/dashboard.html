@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% from "components.html" import card_open, card_close, card_title, stat_card, button, empty_state, result_badge %}
+{% block title %}Dashboard — Footy Edge Bot{% endblock %}
+{% block content %}
+
+<div class="stat-grid">
+  {{ stat_card("Bankroll", "%.0f"|format(bankroll)) }}
+  {{ stat_card("Ungraded picks", ungraded_count, "warn") }}
+  {{ stat_card("Graded picks", graded_count) }}
+  {{ stat_card("Leagues scanned", leagues) }}
+  {{ stat_card("Min edge", "%.0f"|format(min_edge * 100) ~ "%") }}
+</div>
+
+{{ card_open() }}
+  {{ card_title("Run the bot") }}
+  <div id="job-banner"></div>
+  <div class="action-row">
+    <form method="post" action="{{ url_for('run_scan') }}">
+      {{ button('Scanning…' if scan_status.running else 'Scan for value bets', 'primary', 'submit', 'scan-btn', scan_status.running) }}
+    </form>
+    <form method="post" action="{{ url_for('run_grade') }}">
+      {{ button('Grading…' if grade_status.running else 'Grade finished matches', 'secondary', 'submit', 'grade-btn', grade_status.running) }}
+    </form>
+    <form method="post" action="{{ url_for('run_calibrate') }}">
+      {{ button('Recalibrate model', 'outline') }}
+    </form>
+  </div>
+  <p class="note">Scan and grade run in the background — you can keep browsing while they work; this page updates itself when they finish. Grade after matches finish to log real results. Recalibrate weekly once you have 50+ graded picks.</p>
+{{ card_close() }}
+
+{% if bankroll_history and bankroll_history|length > 1 %}
+{{ card_open() }}
+  {{ card_title("Bankroll over time (paper mode)") }}
+  <canvas id="bankroll-chart" width="900" height="180" style="width:100%; height:180px;"></canvas>
+{{ card_close() }}
+{% endif %}
+
+{% if summary %}
+{{ card_open("highlighted") }}
+  {{ card_title("Honest performance (graded picks only)") }}
+  <div class="stat-grid" style="margin-bottom:0;">
+    {{ stat_card("Flat-stake ROI", summary.flat.roi_pct ~ "%", "pos" if summary.flat.roi_pct > 0 else "neg") }}
+    {{ stat_card("Kelly-stake ROI", summary.kelly.roi_pct ~ "%", "pos" if summary.kelly.roi_pct > 0 else "neg") }}
+    {{ stat_card("Brier score", summary.brier) }}
+  </div>
+  <p class="note"><a href="{{ url_for('metrics_page') }}">See full breakdown by market →</a></p>
+{{ card_close() }}
+{% else %}
+{{ card_open() }}
+  {{ card_title("Honest performance") }}
+  {{ empty_state("&#128202;"|safe, "Not enough graded picks yet", graded_count ~ "/20 minimum — keep scanning and grading. This fills in once there's enough data to mean something.") }}
+{{ card_close() }}
+{% endif %}
+
+{{ card_open() }}
+  {{ card_title("Recent predictions") }}
+  {% if recent_predictions %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Match</th><th>Market</th><th>Edge</th><th>Odds</th><th>Stake</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      {% for p in recent_predictions %}
+      <tr>
+        <td data-label="Match">{{ p.home_team }} vs {{ p.away_team }}<br><span class="text-caption">{{ p.league }}</span></td>
+        <td data-label="Market">{{ p.market }}</td>
+        <td data-label="Edge" class="dim">+{{ "%.1f"|format(p.edge * 100) }}%</td>
+        <td data-label="Odds">{{ p.best_odds }}</td>
+        <td data-label="Stake" class="dim">{{ "%.0f"|format(p.kelly_stake_amount) }}</td>
+        <td data-label="Result">{{ result_badge(p.result) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="note"><a href="{{ url_for('predictions') }}">See all predictions →</a></p>
+  {% else %}
+  {{ empty_state("&#9917;"|safe, "No predictions logged yet", "Run a scan above to get started.") }}
+  {% endif %}
+{{ card_close() }}
+
+<script>
+{% if bankroll_history and bankroll_history|length > 1 %}
+(function() {
+  const points = {{ bankroll_history|map(attribute='bankroll')|list|tojson }};
+  const canvas = document.getElementById('bankroll-chart');
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 900;
+  const cssHeight = 180;
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.scale(dpr, dpr);
+  const pad = 24;
+  const w = cssWidth - pad * 2;
+  const h = cssHeight - pad * 2;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = (max - min) || 1;
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const y = pad + (h / 3) * i;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(pad + w, y); ctx.stroke();
+  }
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = pad + (w * i) / (points.length - 1);
+    const y = pad + h - ((p - min) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = points[points.length - 1] >= points[0] ? '#22C55E' : '#C1524B';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = '#6B7280';
+  ctx.font = '10px monospace';
+  ctx.fillText(min.toFixed(0), pad, cssHeight - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText(max.toFixed(0), pad + w, 14);
+  ctx.textAlign = 'left';
+})();
+{% endif %}
+
+(function() {
+  const wasRunning = {{ 'true' if (scan_status.running or grade_status.running) else 'false' }};
+  if (!wasRunning) return;
+  const banner = document.getElementById('job-banner');
+  banner.innerHTML = '<div class="toast info">Working in the background — this page will refresh automatically when done.</div>';
+  function poll() {
+    Promise.all([
+      fetch('/job-status/scan').then(r => r.json()),
+      fetch('/job-status/grade').then(r => r.json()),
+    ]).then(([scan, grade]) => {
+      if (!scan.running && !grade.running) { window.location.reload(); }
+      else { setTimeout(poll, 3000); }
+    }).catch(() => setTimeout(poll, 5000));
+  }
+  setTimeout(poll, 3000);
+})();
+</script>
+
+{% endblock %}

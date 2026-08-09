@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Sign in - Footy Edge Bot{% endblock %}
+{% block content %}
+<div style="max-width: 380px; margin: 15vh auto 0; padding: 0 var(--sp-4);">
+  <div class="card">
+    <h1 class="card-title" style="font-size: var(--fs-h1); margin-bottom: var(--sp-2);">Footy Edge Bot</h1>
+    <p class="note" style="margin-top:0; margin-bottom: var(--sp-5);">Enter the passcode to continue.</p>
+    <form method="POST">
+      <div class="form-row">
+        <label class="field-label" for="passcode">Passcode</label>
+        <input type="text" id="passcode" name="passcode" autocomplete="off" autocapitalize="off"
+               spellcheck="false" autofocus style="width: 100%;">
+      </div>
+      <button type="submit" class="btn primary" style="width: 100%; justify-content: center;">Unlock</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

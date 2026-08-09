@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "components.html" import card_open, card_close, card_title, empty_state, result_badge, button %}
+{% block title %}Predictions — Footy Edge Bot{% endblock %}
+{% block content %}
+
+{{ card_open() }}
+  {{ card_title("Filters") }}
+  <form method="get" action="{{ url_for('predictions') }}" style="display:flex; gap:var(--sp-3); flex-wrap:wrap; align-items:flex-end;">
+    <div>
+      <label class="text-caption" style="display:block; margin-bottom:6px;">Result</label>
+      <select class="field-select" name="result" onchange="this.form.submit()">
+        <option value="all" {{ 'selected' if result_filter == 'all' else '' }}>All</option>
+        <option value="pending" {{ 'selected' if result_filter == 'pending' else '' }}>Pending</option>
+        <option value="WON" {{ 'selected' if result_filter == 'WON' else '' }}>Won</option>
+        <option value="LOST" {{ 'selected' if result_filter == 'LOST' else '' }}>Lost</option>
+      </select>
+    </div>
+    <div>
+      <label class="text-caption" style="display:block; margin-bottom:6px;">Market</label>
+      <select class="field-select" name="market" onchange="this.form.submit()">
+        <option value="all" {{ 'selected' if market_filter == 'all' else '' }}>All</option>
+        {% for m in all_markets %}
+        <option value="{{ m }}" {{ 'selected' if market_filter == m else '' }}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <a href="{{ url_for('export_csv') }}" class="btn outline" style="text-decoration:none;">Export CSV</a>
+  </form>
+{{ card_close() }}
+
+{{ card_open() }}
+  {{ card_title("Predictions (" ~ predictions|length ~ ")") }}
+  {% if predictions %}
+  <table class="data-table">
+    <thead>
+      <tr><th>Match</th><th>Market</th><th>Model</th><th>Market</th><th>Edge</th><th>Odds</th><th>Book</th><th>Stake</th><th>Logged</th><th>Result</th></tr>
+    </thead>
+    <tbody>
+      {% for p in predictions %}
+      <tr>
+        <td data-label="Match">{{ p.home_team }} vs {{ p.away_team }}<br><span class="text-caption">{{ p.league }}</span></td>
+        <td data-label="Market">{{ p.market }}</td>
+        <td data-label="Model">{{ "%.1f"|format((p.calibrated_prob if p.calibrated_prob is not none else p.model_prob) * 100) }}%</td>
+        <td data-label="Market" class="dim">{{ "%.1f"|format(p.market_prob * 100) }}%</td>
+        <td data-label="Edge" class="dim">+{{ "%.1f"|format(p.edge * 100) }}%</td>
+        <td data-label="Odds">{{ p.best_odds }}</td>
+        <td data-label="Book" class="dim">{{ p.bookmaker or "—" }}</td>
+        <td data-label="Stake" class="dim">{{ "%.0f"|format(p.kelly_stake_amount) }}</td>
+        <td data-label="Logged" class="dim">{{ p.predicted_at }}</td>
+        <td data-label="Result">{{ result_badge(p.result) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  {{ empty_state("&#128203;"|safe, "No predictions match this filter", "Go to the Dashboard and run a scan, or adjust the filters above.") }}
+  {% endif %}
+{{ card_close() }}
+
+{% endblock %}

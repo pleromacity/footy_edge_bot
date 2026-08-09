@@ -30,6 +30,7 @@ def market_key_to_prob_key(market: str) -> str:
 
 
 def run():
+    config.require_api_keys()
     init_db()
     bankroll = latest_bankroll(config.STARTING_BANKROLL)
     if bankroll == config.STARTING_BANKROLL:

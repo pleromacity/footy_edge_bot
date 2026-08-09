@@ -23,54 +23,44 @@ if load_dotenv is not None:
 
 
 def _require_env(name: str) -> str:
-    value = os.environ.get(name)
-    if not value:
-        raise RuntimeError(
-            f"Missing required environment variable: {name}. "
-            "Add it to your shell or a local .env file before running the app."
-        )
-    return value
+    """Read an env var without raising. Missing/blank values are validated
+    later, only in the code paths that actually need them (see
+    require_api_keys() below) -- not at import time, since config.py gets
+    imported by modules (settings, storage) that have nothing to do with
+    these two APIs, including the test suite."""
+    return os.environ.get(name, "")
 
 
 API_FOOTBALL_KEY = _require_env("API_FOOTBALL_KEY")
 ODDS_API_KEY = _require_env("ODDS_API_KEY")
 
-# API-Football league IDs to scan. Add/remove as you like.
-# 39=EPL, 140=La Liga, 78=Bundesliga, 135=Serie A, 61=Ligue 1, 88=Eredivisie, 94=Primeira Liga
+
+def require_api_keys():
+    """Call this before anything that actually hits API-Football or The Odds
+    API (e.g. at the start of a scan). Raises a clear error if a key is
+    missing, instead of the request failing later with a confusing 401."""
+    missing = [
+        name for name, value in [
+            ("API_FOOTBALL_KEY", API_FOOTBALL_KEY),
+            ("ODDS_API_KEY", ODDS_API_KEY),
+        ] if not value
+    ]
+    if missing:
+        raise RuntimeError(
+            f"Missing required environment variable(s): {', '.join(missing)}. "
+            "Add them to your shell, a local .env file, or Render's Environment tab."
+        )
+
 LEAGUE_IDS = [39, 140, 78, 135, 61, 88, 94]
-
-# Current season year (API-Football uses the start year of the season, e.g. 2025 for 2025/26)
 SEASON = 2025
-
-# How many days ahead to pull fixtures for
 DAYS_AHEAD = 3
-
-# The Odds API sport key for soccer (it splits by competition; "soccer_epl" etc.
-# also exist, but this pulls upcoming soccer broadly across supported leagues)
 ODDS_API_SPORT_KEYS = [
-    "soccer_epl",
-    "soccer_spain_la_liga",
-    "soccer_germany_bundesliga",
-    "soccer_italy_serie_a",
-    "soccer_france_ligue_one",
-    "soccer_netherlands_eredivisie",
-    "soccer_portugal_primeira_liga",
+    "soccer_epl", "soccer_spain_la_liga", "soccer_germany_bundesliga",
+    "soccer_italy_serie_a", "soccer_france_ligue_one",
+    "soccer_netherlands_eredivisie", "soccer_portugal_primeira_liga",
 ]
-
-# Minimum edge (model probability minus de-vigged market probability) required
-# to flag a bet as "value". Keep this conservative — small samples lie.
-MIN_EDGE = 0.04  # 4 percentage points
-
-# Fractional Kelly multiplier. 1.0 = full Kelly (aggressive, high variance).
-# 0.25-0.5 is what most professional bettors actually use.
+MIN_EDGE = 0.04
 KELLY_FRACTION = 0.25
-
-# Starting bankroll for paper-mode simulation (in your currency of choice, e.g. NGN)
 STARTING_BANKROLL = 100000
-
-# PAPER MODE: when True, the bot only logs picks and simulated stakes.
-# It never assumes real money was staked. Flip to False once you've
-# validated the model with real graded results (see grade.py + README).
 PAPER_MODE = True
-
 DB_PATH = "data/footy_edge.db"

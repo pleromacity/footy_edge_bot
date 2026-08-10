@@ -156,11 +156,15 @@ def job_status(job_name):
 @app.route("/calibrate", methods=["POST"])
 def run_calibrate():
     try:
-        result = calibrate_module.fit_calibration()
-        if result:
-            flash(f"Calibration updated using {result['trained_on_n']} graded predictions.", "success")
-        else:
-            flash("Not enough graded predictions yet to calibrate (need 50+).", "info")
+        enabled_sports = settings_module.get("enabled_sports") or ["football"]
+        messages = []
+        for sport in enabled_sports:
+            result = calibrate_module.fit_calibration(sport=sport)
+            if result:
+                messages.append(f"{sport}: updated using {result['trained_on_n']} graded predictions.")
+            else:
+                messages.append(f"{sport}: not enough graded predictions yet (need 50+).")
+        flash(" | ".join(messages), "info")
     except Exception as e:
         logger.exception("Calibration failed")
         flash(f"Calibration failed: {e}", "error")
@@ -226,11 +230,13 @@ def metrics_page():
 def settings_page():
     if request.method == "POST":
         selected_leagues = [int(lid) for lid in request.form.getlist("league_ids")]
+        selected_sports = request.form.getlist("enabled_sports")
         updates = {
             "min_edge": float(request.form.get("min_edge", 4)) / 100,
             "kelly_fraction": float(request.form.get("kelly_fraction", 25)) / 100,
             "days_ahead": int(request.form.get("days_ahead", 3)),
             "league_ids": selected_leagues or settings_module.DEFAULTS["league_ids"],
+            "enabled_sports": selected_sports or settings_module.DEFAULTS["enabled_sports"],
             "auto_scan_enabled": request.form.get("auto_scan_enabled") == "on",
             "scan_time": request.form.get("scan_time", "08:00"),
             "grade_time": request.form.get("grade_time", "23:00"),
@@ -245,6 +251,7 @@ def settings_page():
         "settings.html",
         current=current,
         all_leagues=settings_module.ALL_LEAGUES,
+        all_sports=settings_module.ALL_SPORTS,
     )
 
 

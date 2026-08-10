@@ -24,6 +24,12 @@ DEFAULTS = {
     "auto_scan_enabled": False,
     "scan_time": "08:00",
     "grade_time": "23:00",
+    "enabled_sports": ["football"],  # add "nba" once you've set it up -- see README
+}
+
+ALL_SPORTS = {
+    "football": "Football (soccer)",
+    "nba": "Basketball (NBA)",
 }
 
 ALL_LEAGUES = {

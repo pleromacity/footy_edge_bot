@@ -123,6 +123,36 @@ Scan and grade now run in the background — clicking the button doesn't
 freeze the page. The dashboard polls automatically and refreshes itself
 once a job finishes.
 
+## Adding NBA (basketball)
+
+NBA support uses the same account you already have for football, so there's
+no new signup:
+
+1. Log into your existing dashboard at api-sports.io (the account behind
+   your `API_FOOTBALL_KEY`). Find the **NBA** API in the product list and
+   subscribe to its free plan -- it's a separate 100 req/day quota from
+   football, tracked independently.
+2. No new environment variable needed -- the app reuses `API_FOOTBALL_KEY`
+   for NBA requests too (same key, same account, different product).
+3. In Settings, check the "Basketball (NBA)" box under "Sports to scan" and
+   save. Your next scan will cover both football and NBA.
+
+**Scope note:** the NBA model currently covers the **moneyline (win/loss)
+market only** -- no spreads or totals yet. It also skips a team until it
+has at least 5 finished games this season to average from, so early in the
+NBA season you may see nothing from it for a couple of weeks. It uses a
+different (and simpler) model than football: expected point margin from
+each team's recent scoring, converted to a win probability. Same underlying
+principle as the football model -- compare model probability to the
+de-vigged market price, only bet a real edge -- just built for a
+higher-scoring, continuous sport instead of a low-scoring discrete one.
+
+The field names this reads from API-Sports' NBA API (`teams.home/visitors`,
+`scores.home.points/visitors.points`, game status codes `NS`/`FT`) are
+based on their public documentation, not a live test call -- if your first
+NBA scan errors out, check the actual response shape in the logs against
+`nba_fetcher.py` and it's likely a quick field-name fix.
+
 ## Database on Render (Postgres)
 
 Locally this uses a SQLite file at `data/footy_edge.db`. On Render's free

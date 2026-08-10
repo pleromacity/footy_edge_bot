@@ -40,6 +40,7 @@ else:
 SCHEMA_SQLITE = """
 CREATE TABLE IF NOT EXISTS predictions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sport TEXT NOT NULL DEFAULT 'football',
     fixture_id INTEGER NOT NULL,
     league TEXT,
     home_team TEXT,
@@ -70,6 +71,7 @@ CREATE TABLE IF NOT EXISTS bankroll_log (
 SCHEMA_POSTGRES = """
 CREATE TABLE IF NOT EXISTS predictions (
     id SERIAL PRIMARY KEY,
+    sport TEXT NOT NULL DEFAULT 'football',
     fixture_id INTEGER NOT NULL,
     league TEXT,
     home_team TEXT,
@@ -124,15 +126,39 @@ def init_db():
             conn.cursor().execute(SCHEMA_POSTGRES)
         else:
             conn.executescript(SCHEMA_SQLITE)
+    _migrate_add_sport_column()
+
+
+def _migrate_add_sport_column():
+    """Databases created before multi-sport support won't have the `sport`
+    column yet. Add it if missing -- safe to run every startup, it's a
+    no-op once the column exists."""
+    with get_conn() as conn:
+        cur = conn.cursor()
+        try:
+            if USING_POSTGRES:
+                cur.execute(
+                    "ALTER TABLE predictions ADD COLUMN IF NOT EXISTS sport TEXT NOT NULL DEFAULT 'football'"
+                )
+            else:
+                cur.execute("PRAGMA table_info(predictions)")
+                existing_cols = {row["name"] for row in cur.fetchall()}
+                if "sport" not in existing_cols:
+                    cur.execute(
+                        "ALTER TABLE predictions ADD COLUMN sport TEXT NOT NULL DEFAULT 'football'"
+                    )
+        except Exception:
+            pass  # column already exists or backend doesn't need this -- fine either way
 
 
 def insert_prediction(row: dict) -> int:
     cols = (
-        "fixture_id, league, home_team, away_team, kickoff, market, "
+        "sport, fixture_id, league, home_team, away_team, kickoff, market, "
         "model_prob, calibrated_prob, market_prob, best_odds, bookmaker, "
         "edge, kelly_stake_fraction, kelly_stake_amount"
     )
     values = (
+        row.get("sport", "football"),
         row["fixture_id"], row["league"], row["home_team"], row["away_team"],
         row["kickoff"], row["market"], row["model_prob"], row.get("calibrated_prob"),
         row["market_prob"], row["best_odds"], row.get("bookmaker"),
@@ -142,11 +168,11 @@ def insert_prediction(row: dict) -> int:
         cur = conn.cursor()
         if USING_POSTGRES:
             cur.execute(
-                f"INSERT INTO predictions ({cols}) VALUES ({_ph(14)}) RETURNING id", values
+                f"INSERT INTO predictions ({cols}) VALUES ({_ph(15)}) RETURNING id", values
             )
             return cur.fetchone()["id"]
         else:
-            cur.execute(f"INSERT INTO predictions ({cols}) VALUES ({_ph(14)})", values)
+            cur.execute(f"INSERT INTO predictions ({cols}) VALUES ({_ph(15)})", values)
             return cur.lastrowid
 
 

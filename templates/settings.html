@@ -28,6 +28,20 @@
     </div>
 
     <div class="form-row">
+      <label class="field-label">Sports to scan</label>
+      <div class="check-grid">
+        {% for id, name in all_sports.items() %}
+        <label class="check-tile">
+          <input type="checkbox" name="enabled_sports" value="{{ id }}"
+                 {{ 'checked' if id in current.enabled_sports else '' }}>
+          {{ name }}
+        </label>
+        {% endfor %}
+      </div>
+      <p class="note">NBA needs its own free API-Sports NBA product activated on your dashboard, and adds a separate 100 req/day quota from football -- see the README.</p>
+    </div>
+
+    <div class="form-row">
       <label class="field-label">Leagues to scan</label>
       <div class="check-grid">
         {% for id, name in all_leagues.items() %}

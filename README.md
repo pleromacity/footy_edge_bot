@@ -1,6 +1,6 @@
 # Footy Edge Bot
 
-A football prediction and value-detection tool: it estimates match outcome
+A football and Basketball prediction and value-detection tool: it estimates match outcome
 probabilities with a Poisson model, compares them against real bookmaker
 odds (de-vigged, so you're comparing against the *fair* market price), and
 flags bets where your model disagrees enough with the market to be worth

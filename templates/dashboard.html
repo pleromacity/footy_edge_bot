@@ -13,16 +13,20 @@
 
 {{ card_open() }}
 {{ card_title("Run the bot") }}
-{% set scan_summary = (scan_status.result or {}).get('summary') if scan_status.result else None %}
+{% set scan_result = scan_status.result if scan_status else None %}
+{% set scan_summary = (scan_result or {}).get('summary') if scan_result else last_scan_summary %}
 {% set scan_msg = '' %}
 {% set scan_kind = 'info' %}
-{% if scan_status.error %}
+{% if scan_status and scan_status.error %}
 {% set scan_msg = 'Scan failed: ' ~ scan_status.error %}
 {% set scan_kind = 'error' %}
 {% elif scan_summary and scan_summary.message %}
 {% set scan_msg = scan_summary.message %}
 {% set scan_kind = 'error' if scan_summary.status == 'error' else ('info' if scan_summary.status == 'no_games' else
 'success') %}
+{% elif scan_status and scan_status.running %}
+{% set scan_msg = 'Scan in progress...' %}
+{% set scan_kind = 'info' %}
 {% endif %}
 {% if scan_msg %}
 <div class="toast {{ scan_kind }}">

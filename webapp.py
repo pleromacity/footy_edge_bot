@@ -91,6 +91,8 @@ def dashboard():
             "brier": round(metrics_module.brier_score(graded), 4),
         }
 
+    last_scan_summary = getattr(scan_module, "LAST_SCAN_SUMMARY", {"status": "ok", "message": "", "count": 0})
+
     return render_template(
         "dashboard.html",
         bankroll=bankroll,
@@ -103,6 +105,7 @@ def dashboard():
         bankroll_history=bankroll_history,
         scan_status=job_state.get("scan"),
         grade_status=job_state.get("grade"),
+        last_scan_summary=last_scan_summary,
     )
 
 

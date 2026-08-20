@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
     load_dotenv = None
 
 base_dir = Path(__file__).resolve().parent
-if load_dotenv is not None:
+if load_dotenv is not None and "PYTEST_CURRENT_TEST" not in os.environ:
     load_dotenv(base_dir / ".env")
 
 
@@ -33,6 +33,18 @@ def _require_env(name: str) -> str:
 
 API_FOOTBALL_KEY = _require_env("API_FOOTBALL_KEY")
 ODDS_API_KEY = _require_env("ODDS_API_KEY")
+
+missing = [
+    name for name, value in [
+        ("API_FOOTBALL_KEY", API_FOOTBALL_KEY),
+        ("ODDS_API_KEY", ODDS_API_KEY),
+    ] if not value
+]
+if missing:
+    raise RuntimeError(
+        f"Missing required environment variable(s): {', '.join(missing)}. "
+        "Add them to your shell, a local .env file, or Render's Environment tab."
+    )
 
 # API-Sports (the company behind API-Football) provides NBA data under the
 # same account -- https://v2.nba.api-sports.io -- so the same key works for

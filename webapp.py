@@ -110,10 +110,21 @@ def _background_scan():
     job_state.start("scan")
     try:
         value_bets = scan_module.run()
-        job_state.finish("scan", result={"count": len(value_bets)})
+        summary = getattr(scan_module, "LAST_SCAN_SUMMARY", {"status": "ok", "message": "", "count": len(value_bets)})
+        job_state.finish("scan", result={"count": len(value_bets), "summary": summary})
+        with app.app_context():
+            if summary.get("status") == "error":
+                flash(summary.get("message", "Scan failed."), "error")
+            elif summary.get("status") == "no_games":
+                flash(summary.get("message", "No games available."), "info")
+            elif summary.get("message"):
+                flash(summary.get("message", "Scan complete."), "success")
     except Exception as e:
         logger.exception("Manual scan failed")
-        job_state.finish("scan", error=str(e))
+        message = f"Scan failed: {e}"
+        job_state.finish("scan", error=str(e), result={"count": 0, "summary": {"status": "error", "message": message, "count": 0}})
+        with app.app_context():
+            flash(message, "error")
 
 
 @app.route("/scan", methods=["POST"])

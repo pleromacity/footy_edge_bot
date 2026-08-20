@@ -27,6 +27,24 @@ from storage import init_db, insert_prediction, latest_bankroll, log_bankroll
 from logging_setup import setup_logging
 
 logger = setup_logging()
+LAST_SCAN_SUMMARY = {"status": "ok", "message": "", "count": 0}
+
+
+def summarize_scan_result(value_bets: list[dict], source: str = "football", error: Exception | None = None, no_games: bool = False) -> dict:
+    """Return a clear summary for UI/logging when a scan finds zero picks or fails."""
+    if error is not None:
+        message = f"Scan failed while fetching {source} data: {error}"
+        logger.error(message)
+        return {"status": "error", "message": message, "count": 0}
+    if no_games:
+        message = "No games available in the selected date range for the configured leagues."
+        logger.info(message)
+        return {"status": "no_games", "message": message, "count": 0}
+    if not value_bets:
+        message = "No value bets found this run. That's a normal, healthy result -- real edges are rare."
+        logger.info(message)
+        return {"status": "ok", "message": message, "count": 0}
+    return {"status": "ok", "message": f"{len(value_bets)} value bet(s) found.", "count": len(value_bets)}
 
 
 def market_key_to_prob_key(market: str) -> str:
@@ -160,6 +178,8 @@ SPORT_SCANNERS = {
 
 
 def run():
+    global LAST_SCAN_SUMMARY
+
     config.require_api_keys()
     init_db()
     bankroll = latest_bankroll(config.STARTING_BANKROLL)
@@ -174,20 +194,37 @@ def run():
     logger.info(f"Scan started. Bankroll={bankroll}, paper_mode={paper_mode}, min_edge={min_edge}, sports={enabled_sports}")
 
     all_value_bets = []
+    scan_error = None
+    no_games = False
     for sport in enabled_sports:
         scanner = SPORT_SCANNERS.get(sport)
         if not scanner:
             print(f"  [skip] Unknown sport '{sport}' in settings.")
             continue
-        bets = scanner(bankroll, min_edge, paper_mode)
+        try:
+            bets = scanner(bankroll, min_edge, paper_mode)
+        except Exception as exc:
+            scan_error = exc
+            logger.exception(f"Scan failed for sport '{sport}'")
+            break
         for row in bets:
             insert_prediction(row)
         all_value_bets.extend(bets)
+        if not bets and sport == "football":
+            no_games = True
 
     print(f"\n{'='*70}")
-    if not all_value_bets:
-        print("No value bets found this run. That's a normal, healthy result --")
-        print("real edges are rare. Don't force a bet that isn't there.")
+    if scan_error is not None:
+        print(f"Scan failed: {scan_error}")
+        LAST_SCAN_SUMMARY = summarize_scan_result([], source="football", error=scan_error)
+    elif not all_value_bets:
+        if no_games:
+            print("No games available in the selected date range for the configured leagues.")
+            LAST_SCAN_SUMMARY = summarize_scan_result([], source="football", no_games=True)
+        else:
+            print("No value bets found this run. That's a normal, healthy result --")
+            print("real edges are rare. Don't force a bet that isn't there.")
+            LAST_SCAN_SUMMARY = summarize_scan_result([])
     else:
         print(f"{len(all_value_bets)} value bet(s) found (edge >= {min_edge*100:.0f}%):\n")
         for b in all_value_bets:
@@ -198,10 +235,14 @@ def run():
                   f"Suggested stake: {b['kelly_stake_amount']} "
                   f"({'PAPER' if paper_mode else 'REAL'})")
             print()
+        LAST_SCAN_SUMMARY = summarize_scan_result(all_value_bets)
     print(f"{'='*70}")
-    print("Logged to the database. Run grade.py after matches finish, "
-          "then metrics.py to see honest performance.")
-    logger.info(f"Scan complete. {len(all_value_bets)} value bet(s) found and logged.")
+    if scan_error is None:
+        print("Logged to the database. Run grade.py after matches finish, "
+              "then metrics.py to see honest performance.")
+        logger.info(f"Scan complete. {len(all_value_bets)} value bet(s) found and logged.")
+    else:
+        logger.error(f"Scan failed: {scan_error}")
 
     return all_value_bets
 
